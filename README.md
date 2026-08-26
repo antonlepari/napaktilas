@@ -1,8 +1,17 @@
-# Google Timeline Visualizer (Lokal & Privat)
+# napaktilas.py — Google Timeline Visualizer (Lokal & Privat)
 
 Script Python untuk mengubah data ekspor Google Maps Timeline (`Timeline.json`)
 menjadi video perjalanan (MP4) — **tanpa mengunggah data ke server manapun**.
 Semua parsing JSON dan rendering peta dilakukan di komputer kamu sendiri.
+
+## Preview
+
+![Preview animasi](preview.gif)
+
+> Ketiga file preview di atas dirender dari **data rute sintetis**
+> (Jakarta → Bandung → Yogyakarta → Surabaya, bukan data lokasi milik siapa
+> pun) sebagai contoh, dan dirender **tanpa basemap** karena environment yang
+> dipakai untuk generate demo ini tidak punya akses ke server tile peta.
 
 ## Privasi
 Satu-satunya lalu lintas jaringan (jika `contextily` terinstall) adalah
@@ -60,6 +69,73 @@ python napaktilas.py Timeline.json \
 | `--max-speed`  | `1000`                | Ambang kecepatan (km/jam) untuk buang outlier GPS |
 | `--keep-frames`| off                  | Simpan folder `frames_output/` berisi tiap PNG |
 
+## Format Timeline.json yang didukung
+
+Google mengubah struktur file ekspor Timeline dari waktu ke waktu. Script ini
+sudah dites kompatibel dengan varian berikut:
+
+- **Root berupa array langsung** — `[ {startTime, endTime, visit|activity|timelinePath}, ... ]`
+  (bentuk paling umum di ekspor terbaru dari HP)
+- **Root berupa objek** — `{"semanticSegments": [...]}`
+- **Format lama Google Takeout** — `{"locations": [{latitudeE7, longitudeE7, timestampMs}]}`
+
+Di dalam tiap segmen, field koordinat (`placeLocation`, `start`, `end`, `point`)
+juga bisa berupa string `"geo:lat,lng"` langsung atau dibungkus
+`{"latLng": "geo:lat,lng"}` — keduanya otomatis dikenali.
+
+### Contoh isi file (dengan penjelasan)
+
+Ini contoh nyata satu blok segmen `visit` dan satu blok `activity` dari
+ekspor Google Maps Timeline (format root-array, paling umum saat ini):
+
+```jsonc
+[
+  {
+    // "visit" = kamu berdiam di satu lokasi dalam rentang waktu ini
+    "startTime": "2025-01-28T19:00:00.000+07:00",
+    "endTime":   "2025-01-28T21:22:22.736+07:00",
+    "visit": {
+      "topCandidate": {
+        "placeID": "ChIJ7z5zMFXsaS4Ruzprvnp9-dc",     // ID lokasi internal Google
+        "placeLocation": "geo:-6.339292,106.862077",   // <-- koordinat yang dipakai script
+        "semanticType": "Unknown"
+      },
+      "probability": "0.000000"                        // keyakinan Google atas titik ini (diabaikan script)
+    }
+  },
+  {
+    // "activity" = kamu sedang berpindah tempat (jalan kaki, mobil, dst)
+    "startTime": "2025-01-28T21:22:22.019+07:00",
+    "endTime":   "2025-01-29T01:06:49.489+07:00",
+    "activity": {
+      "start": "geo:-6.339306,106.861622",   // <-- titik awal perjalanan
+      "end":   "geo:-6.303820,106.820600",   // <-- titik akhir perjalanan
+      "distanceMeters": "6010.298340",
+      "topCandidate": { "type": "in passenger vehicle", "probability": "0.439638" }
+    }
+  }
+]
+```
+
+**Field yang benar-benar dipakai script:**
+
+| Field                                  | Dipakai untuk                          |
+|------------------------------------------|-------------------------------------------|
+| `startTime`, `endTime`                    | Waktu tiap titik (dipakai untuk urutan & interpolasi) |
+| `visit.topCandidate.placeLocation`        | Koordinat tempat kamu berdiam              |
+| `activity.start`, `activity.end`          | Koordinat awal & akhir perjalanan          |
+| `timelinePath[].point`, `timelinePath[].time` | Titik-titik rute detail (kalau ada di segmen) |
+
+Field lain (`placeID`, `probability`, `distanceMeters`, `hierarchyLevel`,
+`semanticType`, dll.) **diabaikan** — bukan berarti error kalau ada/tidak ada,
+script memang tidak membutuhkannya.
+
+Kalau suatu saat Google ubah lagi strukturnya dan script gagal menemukan titik
+lokasi, cara paling cepat mendiagnosis: buka file JSON kamu, cari satu entri
+`visit` atau `activity`, lalu bandingkan strukturnya dengan yang dijelaskan
+di atas — biasanya cuma perlu sesuaikan fungsi `extract_points_from_segments()`
+di `napaktilas.py`.
+
 ## Cara kerja singkat
 
 1. **Parsing** — membaca `semanticSegments` (`timelinePath`, `visit`,
@@ -72,6 +148,12 @@ python napaktilas.py Timeline.json \
 4. **Render frame** — tiap frame digambar dengan `matplotlib` (+ basemap
    opsional dari `contextily`).
 5. **Encode video** — semua frame PNG digabung jadi MP4 lewat FFmpeg.
+
+## FAQ & Troubleshooting
+
+Ada FAQ lengkap dan daftar error umum (beserta cara mengatasinya) di
+[FAQ.md](FAQ.md) — termasuk soal `Timeline.json` tidak terbaca, FFmpeg tidak
+ditemukan, basemap tidak muncul, dan lainnya.
 
 ## Kustomisasi lanjutan
 
