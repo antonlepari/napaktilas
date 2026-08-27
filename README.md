@@ -8,18 +8,23 @@ Semua parsing JSON dan rendering peta dilakukan di komputer kamu sendiri.
 
 ![Preview animasi](preview.gif)
 
-> Ketiga file preview di atas dirender dari **data rute sintetis**
-> (Jakarta → Bandung → Yogyakarta → Surabaya, bukan data lokasi milik siapa
-> pun) sebagai contoh, dan dirender **tanpa basemap** karena environment yang
-> dipakai untuk generate demo ini tidak punya akses ke server tile peta.
 
 ## Privasi
-Satu-satunya lalu lintas jaringan (jika `contextily` terinstall) adalah
-permintaan gambar peta dasar (basemap tile) dari CartoDB/OpenStreetMap untuk
-menggambar latar peta. Ini hanya membocorkan **area peta yang dilihat**,
-bukan isi `Timeline.json` kamu. Kalau mau benar-benar 0 koneksi keluar,
-jangan install `contextily` — video tetap dibuat, hanya tanpa gambar peta
-di belakang jalur/rute (garis & titik tetap tampil di kanvas polos).
+Ada dua fitur **opsional** yang melakukan koneksi jaringan keluar — keduanya
+bisa dimatikan sepenuhnya:
+
+1. **Basemap** (kalau `contextily` terinstall) — minta gambar peta dasar
+   (tile) dari CartoDB/OpenStreetMap. Hanya membocorkan **area peta yang
+   dilihat**, bukan isi `Timeline.json` kamu.
+2. **Label nama tempat** (`--labels geocode`) — mengirim **koordinat titik
+   kunjungan** kamu ke OpenStreetMap Nominatim untuk diterjemahkan jadi
+   nama tempat. Lihat [bagian Label nama tempat](#label-nama-tempat---labels)
+   untuk detail.
+
+Kalau mau benar-benar **0 koneksi keluar**: jangan install `contextily`,
+dan jangan pakai `--labels geocode` (pakai `--labels coords` atau biarkan
+default `--labels off`). Video tetap dibuat sepenuhnya — hanya tanpa
+gambar peta dan/atau tanpa label nama tempat.
 
 ## 1. Ekspor data Timeline kamu
 
@@ -30,7 +35,13 @@ di belakang jalur/rute (garis & titik tetap tampil di kanvas polos).
 
 ## 2. Install dependensi
 
+**Linux / macOS**
 ```bash
+pip3 install -r requirements.txt
+```
+
+**Windows**
+```powershell
 pip install -r requirements.txt
 ```
 
@@ -44,15 +55,84 @@ sudo apt install ffmpeg
 brew install ffmpeg
 
 # Windows: unduh dari https://ffmpeg.org/download.html
+# lalu tambahkan folder bin/ hasil ekstrak ke PATH sistem
 ```
 
 ## 3. Jalankan
 
+Command dasar (paling sederhana, semua opsi default):
+
+**Linux / macOS**
 ```bash
-python napaktilas.py Timeline.json \
+python3 napaktilas.py Timeline.json
+```
+
+**Windows** (Command Prompt atau PowerShell)
+```powershell
+python napaktilas.py Timeline.json
+```
+
+> Di Linux/macOS, `python` kadang mengarah ke Python 2 (atau tidak ada sama
+> sekali) — pakai `python3` untuk memastikan Python 3 yang jalan. Di
+> Windows, installer resmi Python biasanya hanya menyediakan command
+> `python`, jadi pakai itu (`py` juga bisa dipakai sebagai alternatif:
+> `py napaktilas.py Timeline.json`).
+
+### Contoh lengkap dengan opsi
+
+Filter rentang tanggal, atur durasi/fps, dan aktifkan label nama tempat
+(reverse-geocoding, butuh internet):
+
+**Linux / macOS**
+```bash
+python3 napaktilas.py Timeline.json \
     --start 2024-01-01 --end 2024-12-31 \
     --out perjalanan_2024.mp4 \
-    --duration 20 --fps 24
+    --duration 20 --fps 24 \
+    --labels geocode
+```
+
+**Windows (PowerShell)**
+```powershell
+python napaktilas.py Timeline.json `
+    --start 2024-01-01 --end 2024-12-31 `
+    --out perjalanan_2024.mp4 `
+    --duration 20 --fps 24 `
+    --labels geocode
+```
+
+**Windows (Command Prompt / cmd.exe)**
+```bat
+python napaktilas.py Timeline.json ^
+    --start 2024-01-01 --end 2024-12-31 ^
+    --out perjalanan_2024.mp4 ^
+    --duration 20 --fps 24 ^
+    --labels geocode
+```
+
+> Perhatikan karakter penyambung baris beda tiap shell: `\` di
+> bash/zsh (Linux/macOS), `` ` `` (backtick) di PowerShell, `^` di
+> Command Prompt. Kalau bingung, tulis saja semua opsi dalam satu baris
+> panjang — hasilnya sama:
+> ```
+> python3 napaktilas.py Timeline.json --start 2024-01-01 --end 2024-12-31 --out perjalanan_2024.mp4 --duration 20 --fps 24 --labels geocode
+> ```
+
+### Contoh lain yang umum dipakai
+
+```bash
+# Video pendek & cepat untuk preview/testing (durasi 5 detik, fps rendah)
+python3 napaktilas.py Timeline.json --out preview.mp4 --duration 5 --fps 10
+
+# Hanya rute bulan tertentu, label koordinat offline (tanpa internet sama sekali)
+python3 napaktilas.py Timeline.json --start 2024-06-01 --end 2024-06-30 \
+    --out juni_2024.mp4 --labels coords
+
+# Resolusi lebih tinggi untuk diunggah ke YouTube/Instagram
+python3 napaktilas.py Timeline.json --out hasil_hd.mp4 --width 1920 --height 1080
+
+# Simpan frame PNG untuk dicek manual / debug
+python3 napaktilas.py Timeline.json --out video.mp4 --keep-frames
 ```
 
 ## Opsi yang tersedia
@@ -68,6 +148,55 @@ python napaktilas.py Timeline.json \
 | `--height`     | `720`                | Tinggi video (px)                              |
 | `--max-speed`  | `1000`                | Ambang kecepatan (km/jam) untuk buang outlier GPS |
 | `--keep-frames`| off                  | Simpan folder `frames_output/` berisi tiap PNG |
+| `--labels`     | `off`                | Label nama tempat: `off` / `coords` / `geocode` (lihat bawah) |
+
+## Label nama tempat (`--labels`)
+
+Data `Timeline.json` asli dari Google **tidak menyertakan nama tempat**
+yang bisa dibaca manusia — cuma `placeID` internal Google dan koordinat.
+Ada 3 pilihan:
+
+| Mode       | Butuh internet? | Hasil label                                  |
+|------------|:----------------:|-----------------------------------------------|
+| `off` (default) | Tidak       | Tanpa label sama sekali                        |
+| `coords`   | **Tidak**         | Teks koordinat `lat, lon` di tiap titik kunjungan |
+| `geocode`  | **Ya**            | Nama tempat asli, hasil reverse-geocoding via [OpenStreetMap Nominatim](https://nominatim.org/) |
+
+**Linux / macOS**
+```bash
+# Tanpa label (default)
+python3 napaktilas.py Timeline.json --out video.mp4
+
+# Label koordinat, 100% offline
+python3 napaktilas.py Timeline.json --out video.mp4 --labels coords
+
+# Label nama tempat asli, butuh internet
+python3 napaktilas.py Timeline.json --out video.mp4 --labels geocode
+```
+
+**Windows**
+```powershell
+python napaktilas.py Timeline.json --out video.mp4
+python napaktilas.py Timeline.json --out video.mp4 --labels coords
+python napaktilas.py Timeline.json --out video.mp4 --labels geocode
+```
+
+**Catatan penting soal `--labels geocode`:**
+- Mengirim **koordinat titik kunjungan** kamu (bukan seluruh file
+  `Timeline.json`) ke server Nominatim (OpenStreetMap) untuk diterjemahkan
+  jadi nama tempat. Kalau kamu tidak mau ada koneksi keluar sama sekali,
+  pakai `coords` atau `off`.
+- Nominatim membatasi maksimal 1 request/detik dan **mewajibkan**
+  `User-Agent` yang mengidentifikasi aplikasi dengan jelas (lihat
+  [kebijakan Nominatim](https://operations.osmfoundation.org/policies/nominatim/)).
+  Script ini sudah menyertakan `User-Agent` bawaan untuk pemakaian
+  personal — kalau kamu pakai script ini secara rutin/otomatis atau
+  redistribusi, ganti `USER_AGENT` di `napaktilas.py` dengan identitas &
+  kontak kamu sendiri.
+- Titik kunjungan yang berdekatan (< 300 meter) otomatis digabung jadi
+  satu label, supaya tidak spam request untuk lokasi yang sama.
+- Untuk Timeline dengan banyak titik kunjungan unik, proses ini bisa makan
+  waktu (kira-kira 1 detik per lokasi unik).
 
 ## Format Timeline.json yang didukung
 
