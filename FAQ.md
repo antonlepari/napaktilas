@@ -95,6 +95,38 @@ sistem tambahan (GDAL) di sebagian OS. Kalau cuma butuh fungsi dasar
 Script otomatis mendeteksi kalau `contextily` tidak ada dan lanjut tanpa
 basemap.
 
+### `A GDAL API version must be specified...` / error rasterio saat install contextily
+Artinya library sistem **GDAL** belum terinstall — `rasterio` (dependency
+`contextily`) butuh GDAL untuk bisa di-compile lewat `pip`. Ini bukan
+package Python, jadi tidak cukup diinstall lewat `pip` saja. Cara install:
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y gdal-bin libgdal-dev
+export GDAL_CONFIG=$(which gdal-config)
+pip3 install rasterio==$(gdal-config --version) --break-system-packages
+pip3 install contextily --break-system-packages
+# atau lebih gampang: sudo apt install python3-rasterio, lalu pip3 install contextily
+
+# macOS
+brew install gdal
+pip3 install rasterio contextily
+```
+
+Penjelasan lengkap apa itu GDAL dan kenapa dibutuhkan ada di
+[DEPENDENCIES.md](DEPENDENCIES.md#gdal-dependency-sistem-untuk-rasterio--contextily).
+Kalau malas ribet install GDAL, lewati saja `contextily` — pakai
+`--labels coords` untuk label offline, video tetap jadi normal tanpa
+gambar peta di latar belakang.
+
+### `brew install gdal` menarik puluhan dependency (`aws-c-*`, `hdf5`, `poppler`, dll)
+Normal — build GDAL "penuh" dari Homebrew mendukung puluhan format
+geospasial sekaligus (termasuk baca data dari cloud AWS S3, format
+ilmiah NetCDF/HDF5, PDF, dll), padahal `napaktilas.py` cuma butuh
+kemampuan baca gambar tile PNG/JPEG biasa untuk basemap. Bukan tanda
+ada yang salah — lihat contoh lengkap output-nya dan alasannya di
+[DEPENDENCIES.md](DEPENDENCIES.md#kenapa-brew-install-gdal-menarik-puluhan-dependency).
+
 ### Video hasil akhir kosong / berdurasi 0 detik / tidak bisa diputar
 Biasanya berarti frame PNG gagal dibuat (misalnya semua titik lokasi sama
 persis sehingga area peta 0). Jalankan dengan `--keep-frames` untuk cek isi
