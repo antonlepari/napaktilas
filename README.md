@@ -8,7 +8,6 @@ Semua parsing JSON dan rendering peta dilakukan di komputer kamu sendiri.
 
 ![Preview animasi](preview.gif)
 
-
 ## Privasi
 Ada dua fitur **opsional** yang melakukan koneksi jaringan keluar — keduanya
 bisa dimatikan sepenuhnya:
@@ -57,6 +56,16 @@ brew install ffmpeg
 # Windows: unduh dari https://ffmpeg.org/download.html
 # lalu tambahkan folder bin/ hasil ekstrak ke PATH sistem
 ```
+
+> **Soal `contextily` gagal install (error GDAL/rasterio)**: ini paling
+> sering kejadian dan disebabkan oleh library sistem **GDAL** yang belum
+> terinstall (dibutuhkan `rasterio`, dependency `contextily`). Cara
+> install GDAL per OS, penjelasan lengkap apa itu GDAL, dan kenapa
+> `brew install gdal`/`apt install gdal` bisa menarik puluhan dependency
+> lain, ada di [DEPENDENCIES.md](DEPENDENCIES.md#gdal-dependency-sistem-untuk-rasterio--contextily).
+> Kalau males ribet, `contextily` boleh dilewati — video tetap jadi
+> normal, cuma tanpa gambar peta (pakai `--labels coords` untuk label
+> offline sebagai gantinya).
 
 ## 3. Jalankan
 
