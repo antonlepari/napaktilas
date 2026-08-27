@@ -117,6 +117,36 @@ tidak bisa diakses. Script akan otomatis melanjutkan render tanpa basemap
 kalau pengambilan tile gagal (tidak crash), jadi videonya tetap jadi —
 cuma tanpa gambar peta.
 
+### Tidak ada nama tempat di video, cuma garis rute
+Ini sesuai desain default (`--labels off`). Data Timeline asli dari Google
+tidak menyertakan nama tempat yang bisa dibaca manusia, cuma koordinat.
+Pakai `--labels coords` (offline, tampilkan koordinat) atau
+`--labels geocode` (butuh internet, tampilkan nama tempat asli via
+OpenStreetMap Nominatim). Detail lengkap ada di bagian
+[Label nama tempat](README.md#label-nama-tempat---labels) di README.
+
+### `--labels geocode` hasilnya cuma angka koordinat, bukan nama tempat
+Berarti request ke Nominatim gagal (offline, timeout, atau server sedang
+sibuk) — script otomatis fallback ke teks koordinat supaya tidak crash.
+Cek koneksi internet kamu, lalu coba lagi. Kalau baru sebagian titik yang
+gagal (bukan semua), kemungkinan kena rate-limit sesaat — tunggu beberapa
+menit lalu ulangi.
+
+### `--labels geocode` terasa lama / macam ngegantung
+Normal — script sengaja menunggu ±1 detik antar request untuk menghormati
+kebijakan rate-limit Nominatim (maksimal 1 request/detik). Kalau titik
+kunjungan unik kamu ada 50, prosesnya akan makan waktu sekitar 50 detik.
+Progress-nya ditampilkan di terminal (`[1/50] ...`, `[2/50] ...`, dst) —
+kalau tidak ada progress sama sekali setelah lama, kemungkinan koneksi
+internet kamu bermasalah/timeout (coba `Ctrl+C` dan cek koneksi).
+
+### Folder `frames_output/` berisi frame lebih banyak dari yang saya harapkan / video hasil `--keep-frames` aneh
+Kalau kamu render ulang dengan `--keep-frames` ke folder yang sama, versi
+terbaru script sudah otomatis membersihkan folder `frames_output/` sebelum
+render baru. Kalau masih memakai versi lama, hapus manual dulu foldernya
+(`rm -rf frames_output`) sebelum render ulang, supaya frame dari run
+sebelumnya tidak ikut tercampur ke video baru.
+
 ---
 
 Masih ada masalah lain yang belum tercantum di sini? Silakan buka issue di
